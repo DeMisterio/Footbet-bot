@@ -108,9 +108,16 @@ async def render_leagues_keyboard(session, selected_leagues):
     leagues = leagues_res.scalars().all()
     
     keyboard_buttons = []
+    row = []
     for l in leagues:
         mark = "✅ " if l.id in selected_leagues else "⬜️ "
-        keyboard_buttons.append([InlineKeyboardButton(text=f"{mark}{l.name}", callback_data=f"toggle_league_{l.id}")])
+        row.append(InlineKeyboardButton(text=f"{mark}{l.name}", callback_data=f"toggle_league_{l.id}"))
+        if len(row) == 2:
+            keyboard_buttons.append(row)
+            row = []
+            
+    if row:
+        keyboard_buttons.append(row)
         
     keyboard_buttons.append([InlineKeyboardButton(text=_("➡️ Continue"), callback_data="leagues_done")])
     return InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)

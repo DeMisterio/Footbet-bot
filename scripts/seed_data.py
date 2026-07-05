@@ -20,7 +20,12 @@ async def seed_data():
         leagues_data = [
             {"name": "Premier League", "type": "DOMESTIC", "logo_path": "https://media.api-sports.io/football/leagues/39.png"},
             {"name": "La Liga", "type": "DOMESTIC", "logo_path": "https://media.api-sports.io/football/leagues/140.png"},
+            {"name": "Serie A", "type": "DOMESTIC", "logo_path": "https://media.api-sports.io/football/leagues/135.png"},
+            {"name": "Bundesliga", "type": "DOMESTIC", "logo_path": "https://media.api-sports.io/football/leagues/78.png"},
+            {"name": "Ligue 1", "type": "DOMESTIC", "logo_path": "https://media.api-sports.io/football/leagues/61.png"},
+            {"name": "MLS", "type": "DOMESTIC", "logo_path": "https://media.api-sports.io/football/leagues/253.png"},
             {"name": "Champions League", "type": "INTERNATIONAL", "logo_path": "https://media.api-sports.io/football/leagues/2.png"},
+            {"name": "Europa League", "type": "INTERNATIONAL", "logo_path": "https://media.api-sports.io/football/leagues/3.png"},
             {"name": "World Cup", "type": "INTERNATIONAL", "logo_path": "https://media.api-sports.io/football/leagues/1.png"}
         ]
         
@@ -41,19 +46,36 @@ async def seed_data():
             {"name": "Manchester City", "is_national": False, "league_id": league_map["Premier League"]},
             {"name": "Liverpool", "is_national": False, "league_id": league_map["Premier League"]},
             {"name": "Chelsea", "is_national": False, "league_id": league_map["Premier League"]},
+            {"name": "Manchester United", "is_national": False, "league_id": league_map["Premier League"]},
+            {"name": "Tottenham", "is_national": False, "league_id": league_map["Premier League"]},
             
             {"name": "Real Madrid", "is_national": False, "league_id": league_map["La Liga"]},
             {"name": "Barcelona", "is_national": False, "league_id": league_map["La Liga"]},
             {"name": "Atletico Madrid", "is_national": False, "league_id": league_map["La Liga"]},
             
-            {"name": "Bayern Munich", "is_national": False, "league_id": league_map["Champions League"]},
-            {"name": "PSG", "is_national": False, "league_id": league_map["Champions League"]},
-            {"name": "Juventus", "is_national": False, "league_id": league_map["Champions League"]},
+            {"name": "Juventus", "is_national": False, "league_id": league_map["Serie A"]},
+            {"name": "AC Milan", "is_national": False, "league_id": league_map["Serie A"]},
+            {"name": "Inter Milan", "is_national": False, "league_id": league_map["Serie A"]},
+            {"name": "Napoli", "is_national": False, "league_id": league_map["Serie A"]},
+            
+            {"name": "Bayern Munich", "is_national": False, "league_id": league_map["Bundesliga"]},
+            {"name": "Borussia Dortmund", "is_national": False, "league_id": league_map["Bundesliga"]},
+            {"name": "Bayer Leverkusen", "is_national": False, "league_id": league_map["Bundesliga"]},
+            
+            {"name": "PSG", "is_national": False, "league_id": league_map["Ligue 1"]},
+            {"name": "Marseille", "is_national": False, "league_id": league_map["Ligue 1"]},
+            {"name": "Monaco", "is_national": False, "league_id": league_map["Ligue 1"]},
+            
+            {"name": "Inter Miami", "is_national": False, "league_id": league_map["MLS"]},
+            {"name": "LA Galaxy", "is_national": False, "league_id": league_map["MLS"]},
+            {"name": "New York City FC", "is_national": False, "league_id": league_map["MLS"]},
             
             {"name": "Argentina", "is_national": True, "league_id": league_map["World Cup"]},
             {"name": "France", "is_national": True, "league_id": league_map["World Cup"]},
             {"name": "Brazil", "is_national": True, "league_id": league_map["World Cup"]},
             {"name": "England", "is_national": True, "league_id": league_map["World Cup"]},
+            {"name": "Spain", "is_national": True, "league_id": league_map["World Cup"]},
+            {"name": "Germany", "is_national": True, "league_id": league_map["World Cup"]},
         ]
         
         for t_data in teams_data:
