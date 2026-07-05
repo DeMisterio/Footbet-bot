@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, ForeignKey, DateTime, Float
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
@@ -7,7 +7,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = 'users'
     
-    id = Column(Integer, primary_key=True, index=True) # Telegram User ID
+    id = Column(BigInteger, primary_key=True, index=True) # Telegram User ID
     language = Column(String(10), default='en')
     total_points = Column(Integer, default=0)
 
@@ -18,7 +18,7 @@ class Squad(Base):
     __tablename__ = 'squads'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    admin_id = Column(Integer, ForeignKey('users.id'))
+    admin_id = Column(BigInteger, ForeignKey('users.id'))
     invite_code = Column(String(50), unique=True, index=True)
     invite_link = Column(String(200))
     
@@ -30,7 +30,7 @@ class SquadMember(Base):
     __tablename__ = 'squad_members'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
+    user_id = Column(BigInteger, ForeignKey('users.id'))
     squad_id = Column(Integer, ForeignKey('squads.id'))
     points = Column(Integer, default=0)
     notifications_muted = Column(Boolean, default=False)
@@ -88,7 +88,7 @@ class Prediction(Base):
     __tablename__ = 'predictions'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
+    user_id = Column(BigInteger, ForeignKey('users.id'))
     match_id = Column(Integer, ForeignKey('matches.id'))
     predicted_winner = Column(String(20)) # 'HOME', 'AWAY', 'DRAW'
     predicted_score = Column(String(10), nullable=True) # e.g. '2-1'
