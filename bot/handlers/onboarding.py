@@ -11,6 +11,8 @@ from bot.i18n import _
 
 router = Router()
 
+from bot.handlers.menu import get_main_keyboard
+
 class OnboardingStates(StatesGroup):
     waiting_for_invite_code = State()
 
@@ -27,13 +29,30 @@ async def start_cmd(message: Message, state: FSMContext):
             session.add(user)
             await session.commit()
     
+    # Send persistent main menu first
+    await message.answer("Welcome to Footbet! ⚽️", reply_markup=get_main_keyboard())
+    
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=_("JOIN TEAM"), callback_data="onboard_join_team")],
         [InlineKeyboardButton(text=_("CREATE TEAM"), callback_data="onboard_create_team")]
     ])
     
     await message.answer(
-        _("Welcome to Footbet! Do you want to join an existing team or create a new one?"),
+        _("Do you want to join an existing team or create a new one?"),
+        reply_markup=keyboard
+    )
+
+@router.message(F.text == "➕ Join/Create Squad")
+async def handle_join_create_menu(message: Message, state: FSMContext):
+    # This mirrors the onboarding prompt when using the persistent menu
+    await state.clear()
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=_("JOIN TEAM"), callback_data="onboard_join_team")],
+        [InlineKeyboardButton(text=_("CREATE TEAM"), callback_data="onboard_create_team")]
+    ])
+    
+    await message.answer(
+        _("Do you want to join an existing team or create a new one?"),
         reply_markup=keyboard
     )
 

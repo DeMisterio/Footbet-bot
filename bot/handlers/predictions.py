@@ -1,117 +1,122 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy import select
 from bot.database import AsyncSessionLocal
-from bot.models import Prediction, Match
-from bot.i18n import _
+from bot.models import Match, Prediction, Team
+import os
 
-router = Router()
+predictions_router = Router()
 
-class PredictionStates(StatesGroup):
-    waiting_for_exact_score = State()
+class ExactScoreState(StatesGroup):
+    waiting_for_score = State()
 
-def get_prediction_keyboard(match_id: int):
-    # Team 1, Draw, Team 2
-    # Wide button for Exact Score
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=_("Team 1"), callback_data=f"pred_win_HOME_{match_id}"),
-            InlineKeyboardButton(text=_("Draw"), callback_data=f"pred_win_DRAW_{match_id}"),
-            InlineKeyboardButton(text=_("Team 2"), callback_data=f"pred_win_AWAY_{match_id}")
-        ],
-        [
-            InlineKeyboardButton(text=_("Predict Exact Score"), callback_data=f"pred_score_{match_id}")
-        ]
-    ])
-    return keyboard
-
-@router.callback_query(F.data.startswith("pred_win_"))
-async def predict_winner_cb(callback: CallbackQuery):
-    _, winner, match_id_str = callback.data.split("_")[1:]
-    match_id = int(match_id_str)
-    user_id = callback.from_user.id
-    
+@predictions_router.message(F.text == "📅 Upcoming Matches")
+async def list_matches(message: Message):
     async with AsyncSessionLocal() as session:
-        # Get or create prediction
-        result = await session.execute(
+        # Get active matches (mock logic: limit 5)
+        res = await session.execute(
+            select(Match).where(Match.status == "SCHEDULED").limit(5)
+        )
+        matches = res.scalars().all()
+        
+        if not matches:
+            await message.answer("No upcoming matches found.")
+            return
+            
+        for match in matches:
+            # Get teams
+            home = await session.get(Team, match.home_team_id)
+            away = await session.get(Team, match.away_team_id)
+            
+            text = f"⚽️ **{home.name} vs {away.name}**\n🕒 {match.start_time.strftime('%Y-%m-%d %H:%M')}"
+            if match.is_knockout:
+                text += "\n⚠️ **KNOCKOUT PHASE**"
+                
+            buttons = [
+                InlineKeyboardButton(text="🏠 Home Win", callback_data=f"predict_{match.id}_HOME"),
+            ]
+            if not match.is_knockout:
+                buttons.append(InlineKeyboardButton(text="🤝 Draw", callback_data=f"predict_{match.id}_DRAW"))
+            buttons.append(InlineKeyboardButton(text="✈️ Away Win", callback_data=f"predict_{match.id}_AWAY"))
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons])
+            
+            # Send photo if exists in cache (mock implementation path)
+            photo_path = f"assets/cache/{match.id}_vs.png"
+            if os.path.exists(photo_path):
+                photo = FSInputFile(photo_path)
+                await message.answer_photo(photo, caption=text, reply_markup=keyboard, parse_mode="Markdown")
+            else:
+                await message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+
+@predictions_router.callback_query(F.data.startswith("predict_"))
+async def handle_winner_prediction(callback: CallbackQuery, state: FSMContext):
+    parts = callback.data.split("_")
+    match_id = int(parts[1])
+    winner = parts[2]
+    
+    # Store preliminary prediction in state
+    await state.update_data(match_id=match_id, winner=winner)
+    
+    # Ask for exact score
+    await callback.message.answer(
+        f"You predicted **{winner}**. \n\n"
+        "Do you want to predict the exact score for +5 bonus points?\n"
+        "Reply with the score (e.g. `2-1`) or click Skip.",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⏭ Skip Exact Score", callback_data="skip_exact_score")]
+        ])
+    )
+    await state.set_state(ExactScoreState.waiting_for_score)
+    await callback.answer()
+
+async def save_prediction(user_id: int, match_id: int, winner: str, exact_score: str = None):
+    async with AsyncSessionLocal() as session:
+        # Upsert logic
+        res = await session.execute(
             select(Prediction).where(Prediction.user_id == user_id, Prediction.match_id == match_id)
         )
-        prediction = result.scalar_one_or_none()
+        prediction = res.scalar_one_or_none()
         
         if prediction:
             prediction.predicted_winner = winner
-        else:
-            prediction = Prediction(user_id=user_id, match_id=match_id, predicted_winner=winner)
-            session.add(prediction)
-        
-        await session.commit()
-    
-    await callback.answer(_("Prediction for winner registered: {winner}").format(winner=winner), show_alert=True)
-
-@router.callback_query(F.data.startswith("pred_score_"))
-async def predict_score_cb(callback: CallbackQuery, state: FSMContext):
-    match_id = int(callback.data.split("_")[2])
-    await state.update_data(match_id=match_id)
-    await state.set_state(PredictionStates.waiting_for_exact_score)
-    
-    await callback.message.answer(
-        _("Please enter your exact score prediction in the format 'HOME-AWAY' (e.g., '2-1').")
-    )
-    await callback.answer()
-
-@router.message(PredictionStates.waiting_for_exact_score)
-async def process_exact_score(message: Message, state: FSMContext):
-    data = await state.get_data()
-    match_id = data.get("match_id")
-    user_id = message.from_user.id
-    score_text = message.text.strip()
-    
-    # Parse score
-    if "-" not in score_text:
-        await message.answer(_("Invalid format. Please use 'HOME-AWAY' (e.g., '2-1')."))
-        return
-        
-    parts = score_text.split("-")
-    if len(parts) != 2 or not parts[0].strip().isdigit() or not parts[1].strip().isdigit():
-        await message.answer(_("Invalid format. Please use 'HOME-AWAY' (e.g., '2-1')."))
-        return
-        
-    home_score = int(parts[0].strip())
-    away_score = int(parts[1].strip())
-    
-    # Infer winner
-    if home_score > away_score:
-        inferred_winner = "HOME"
-    elif away_score > home_score:
-        inferred_winner = "AWAY"
-    else:
-        inferred_winner = "DRAW"
-        
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(Prediction).where(Prediction.user_id == user_id, Prediction.match_id == match_id)
-        )
-        prediction = result.scalar_one_or_none()
-        
-        if prediction:
-            prediction.predicted_score = f"{home_score}-{away_score}"
-            prediction.predicted_winner = inferred_winner # Overrides manual choice
+            prediction.predicted_score = exact_score
         else:
             prediction = Prediction(
-                user_id=user_id, 
-                match_id=match_id, 
-                predicted_winner=inferred_winner, 
-                predicted_score=f"{home_score}-{away_score}"
+                user_id=user_id,
+                match_id=match_id,
+                predicted_winner=winner,
+                predicted_score=exact_score
             )
             session.add(prediction)
             
         await session.commit()
+
+@predictions_router.message(ExactScoreState.waiting_for_score)
+async def process_exact_score(message: Message, state: FSMContext):
+    score = message.text.strip()
+    # Simple validation regex or check
+    if "-" not in score or len(score) > 5:
+        await message.answer("Invalid format. Please use format like `2-1` or click Skip.")
+        return
         
-    await message.answer(
-        _("Exact score {score} registered! This also sets your winner prediction to {winner}.").format(
-            score=f"{home_score}-{away_score}", winner=inferred_winner
-        )
-    )
+    data = await state.get_data()
+    await save_prediction(message.from_user.id, data['match_id'], data['winner'], score)
+    
+    await message.answer(f"✅ Prediction locked in: **{data['winner']}** with exact score **{score}**!", parse_mode="Markdown")
     await state.clear()
+
+@predictions_router.callback_query(F.data == "skip_exact_score")
+async def skip_exact_score(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    
+    # Check if we are actually waiting for a score
+    current_state = await state.get_state()
+    if current_state == ExactScoreState.waiting_for_score.state:
+        await save_prediction(callback.from_user.id, data['match_id'], data['winner'], None)
+        await callback.message.edit_text(f"✅ Prediction locked in: **{data['winner']}** (No exact score).", parse_mode="Markdown")
+        await state.clear()
+    await callback.answer()
