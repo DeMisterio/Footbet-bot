@@ -18,6 +18,7 @@ class Squad(Base):
     __tablename__ = 'squads'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100))
     admin_id = Column(BigInteger, ForeignKey('users.id'))
     invite_code = Column(String(50), unique=True, index=True)
     invite_link = Column(String(200))
