@@ -1,0 +1,25 @@
+[Unit]
+Description=Footbet Telegram Bot and Webhook Service
+After=network.target
+
+[Service]
+# The user that should run the service (usually your non-root username, e.g., ubuntu)
+User=root
+# The group that should run the service
+Group=root
+
+# The path to your project directory
+WorkingDirectory=/path/to/your/Footbet-bot
+
+# Load environment variables (API keys, Database URL)
+EnvironmentFile=/path/to/your/Footbet-bot/.env
+
+# The command to start the bot using the virtual environment
+ExecStart=/path/to/your/Footbet-bot/venv/bin/python bot/main.py
+
+# Restart policy in case the bot crashes
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
